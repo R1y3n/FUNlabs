@@ -10,20 +10,7 @@ ZIP_LOCAL_SIG = 0x04034B50
 SIG_KEY, SIG_INC = 0x89, 0x01   # fixed keystream used only for the signature
 
 
-# --------------------------------------------------------------------------- #
-# Core crypto primitive
-# --------------------------------------------------------------------------- #
-
 def rolling_xor(buf: bytes, key: int, inc: int):
-    """
-    Decrypt (or encrypt - it's symmetric) `buf` with an additive rolling XOR
-    keystream: out[i] = buf[i] ^ key ; key = (key + inc) & 0xFF, repeated.
-
-    Returns (decrypted_bytes, key_after). Note: for this format each field
-    (header/name/extra) is decrypted starting FRESH at the same per-entry
-    seed, not chained - key_after is unused by the caller but kept for
-    completeness/reuse.
-    """
     out = bytearray(len(buf))
     k = key & 0xFF
     inc &= 0xFF
@@ -33,10 +20,6 @@ def rolling_xor(buf: bytes, key: int, inc: int):
     return bytes(out), k
 
 
-# --------------------------------------------------------------------------- #
-# Logging setup: full detail always goes to the debug log file; the console
-# gets a concise per-entry summary by default, or everything with -v/--verbose.
-# --------------------------------------------------------------------------- #
 
 def setup_logging(debug_log_path: Path, verbose: bool) -> logging.Logger:
     logger = logging.getLogger("fun_extract")
@@ -63,9 +46,6 @@ def sanitize_name(name: str) -> str:
     return "/".join(parts) if parts else "_unnamed_"
 
 
-# --------------------------------------------------------------------------- #
-# Main parsing / extraction loop
-# --------------------------------------------------------------------------- #
 
 def extract(archive_path: Path, out_dir: Path, logger: logging.Logger,
             inflate: bool = True, dry_run: bool = False):
@@ -219,10 +199,6 @@ def extract(archive_path: Path, out_dir: Path, logger: logging.Logger,
                f"{'' if dry_run else ' and extracted'}.")
     return manifest
 
-
-# --------------------------------------------------------------------------- #
-# CLI
-# --------------------------------------------------------------------------- #
 
 def main():
     ap = argparse.ArgumentParser(
