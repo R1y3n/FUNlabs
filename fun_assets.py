@@ -18,14 +18,6 @@ UNSUPPORTED_EXTS = {".bsp"}
 
 ANIM_KEY_FLOATS = {"Pos": 4, "Rot": 5, "PosRot": 8}
 ANIM_KEY_BYTES = {"Pos": 16, "Rot": 20, "PosRot": 32, "PosRotVis": 34}
-# PosRotVis differs from the others: time is stored as u32 (not f32), then
-# f32[3] pos, f32[4] quat, then a trailing u16 (observed always 0 in real
-# files - likely a visibility flag). Decoded generically below.
-
-
-# --------------------------------------------------------------------------- #
-# Shared binary helpers
-# --------------------------------------------------------------------------- #
 
 def read_pstr(d: bytes, off: int):
     n = d[off]
@@ -55,10 +47,6 @@ def read_node(d: bytes, off: int):
         node["scale"] = scale
     return node, off
 
-
-# --------------------------------------------------------------------------- #
-# .OBJ (mesh) conversion
-# --------------------------------------------------------------------------- #
 
 def try_parse_simple_mesh(d: bytes, off: int, owner_name: str, logger, ctx: str):
     """
@@ -174,10 +162,6 @@ def convert_obj_file(path: Path, out_path: Path, logger: logging.Logger):
         logger.info(f"{path.name}: {reason} - exported hierarchy only -> {json_out}")
         return "hierarchy-only"
 
-
-# --------------------------------------------------------------------------- #
-# .ANIM conversion
-# --------------------------------------------------------------------------- #
 
 def decode_keyframe(d: bytes, off: int, ttype: str):
     """Decode one keyframe of the given track type. Returns (key_dict, new_off)."""
@@ -333,37 +317,6 @@ def find_bsp_named_records(d: bytes, end: int):
 
 
 def convert_bsp_file(path: Path, out_path: Path, logger: logging.Logger):
-    """
-    Partial .bsp support - three things are extracted with confidence:
-
-    1. Entity/property script (see module docstring) -> <name>.entities.json
-    2. Inline skybox quad geometry: a handful of "named record" headers
-       (same 32-byte-name+flag+0xFFFFFFFF shape used by the material table)
-       are followed directly by N x 176-byte quad-face blocks instead of
-       nothing. Verified byte-exact (zero leftover bytes) on every skybox
-       face across all 26 real archive .bsp files. -> <name>.skybox.obj
-    3. Material name table (just names, no geometry - referenced by index
-       elsewhere) -> included in <name>.entities.json as "materials".
-
-    NOT extracted (see the module docstring's "known gaps" for detail): the
-    actual architectural level geometry (walls/floors/props) and per-material
-    data. Two large opaque regions were mapped structurally but not solved
-    semantically:
-      - A BVH/spatial-partition node array (repeating fixed-size records
-        with sentinel +-9999998.0 "unset" bounding boxes and small integer
-        fields that look like child/parent indices) sitting between the
-        skybox and the material table.
-      - A material-indexed chunk chain right after the material table
-        ([u32 material_index][u32 length][length bytes]) whose per-material
-        payload is small-integer/0xFF-heavy byte arrays - most likely a
-        lighting or visibility lookup rather than raw vertex data, but this
-        is not confirmed.
-    Both were confirmed present (same shape, proportionally larger) in every
-    one of the 26 real .bsp files, including the largest (32MB) gameplay
-    levels, so they are not cutscene-specific artifacts - genuinely the bulk
-    of each level's data, and a materially bigger reverse-engineering project
-    than the containers solved so far.
-    """
     d = path.read_bytes()
     entity_start = find_bsp_entity_start(d)
     records = find_bsp_named_records(d, entity_start)
@@ -467,10 +420,6 @@ def convert_bsp_file(path: Path, out_path: Path, logger: logging.Logger):
     shutil.copy2(path, raw_out)
     return result
 
-
-# --------------------------------------------------------------------------- #
-# Driver
-# --------------------------------------------------------------------------- #
 
 def setup_logging(log_path: Path, verbose: bool) -> logging.Logger:
     logger = logging.getLogger("fun_asset_convert")
